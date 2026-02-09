@@ -25,9 +25,9 @@ function main() {
   args = ensureArg(args, "--game-id", gameIdHex);
   args = ensureArg(args, "--seed", seed);
 
-  console.log("[reference-slot] init game_id:", gameIdHex);
+  console.log("[outcome-runtime] init game_id:", gameIdHex);
   runCoreYarn("init:game:v2", args);
-  console.log("[reference-slot] GAME_ID_HEX:", gameIdHex);
+  console.log("[outcome-runtime] GAME_ID_HEX:", gameIdHex);
 }
 
 main();

@@ -3,14 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Reference Slot - Verify</title>
+    <title>Outcome Runtime - Verify</title>
     <link rel="stylesheet" href="/app.css" />
   </head>
   <body>
     <header>
       <h1>Verify / Replay</h1>
       <div class="nav">
-        <a href="/play.html">Play</a>
+        <a href="/play.html">Resolve</a>
         <a href="/verify.html">Verify / Replay</a>
         <a href="/spec.html">Spec</a>
       </div>
@@ -33,7 +33,7 @@
         <label for="sig">Transaction signature</label>
         <input id="sig" placeholder="paste tx signature" />
         <button id="btnLocal">Verify Locally (trustless)</button>
-        <button id="btnServer" class="secondary">Replay via Server</button>
+        <button id="btnServer" class="secondary">Replay via Server (optional)</button>
       </div>
 
       <div class="card">
@@ -238,8 +238,8 @@
           outcomeMatch,
           gameIdHex: toHex(ev.gameId),
           spinId: ev.spinId.toString(),
-          betLamports: ev.bet.toString(),
-          winLamports: ev.win.toString(),
+          inputLamports: ev.bet.toString(),
+          outputLamports: ev.win.toString(),
           reelStops: ev.reelStops,
           compiledSpecHash: toHex(ev.compiledSpecHash),
           randomness: toHex(ev.randomness),
@@ -288,9 +288,9 @@
           if (!sig) throw new Error("signature is required");
           const result = await verifyServer(sig, rpc, cluster);
           const ok = (result.replay_output || "").includes("verification_result : MATCH");
-          renderResult("Server replay", ok, result);
+          renderResult("Server replay (optional)", ok, result);
         } catch (e) {
-          renderResult("Server replay", false, { error: String(e) });
+          renderResult("Server replay (optional)", false, { error: String(e) });
         }
       };
     </script>

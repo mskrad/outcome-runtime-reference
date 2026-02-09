@@ -9,12 +9,17 @@ function main() {
   if (!gameId) {
     throw new Error("Missing GAME_ID_HEX (pass --game-id or env GAME_ID_HEX)");
   }
-  const bet = getArgValue(args, "--bet") || process.env.BET_LAMPORTS || "1000";
+  const inputAmount =
+    getArgValue(args, "--input") ||
+    getArgValue(args, "--bet") ||
+    process.env.INPUT_LAMPORTS ||
+    process.env.BET_LAMPORTS ||
+    "1000";
 
   args = ensureArg(args, "--game-id", gameId);
-  args = ensureArg(args, "--bet", bet);
+  args = ensureArg(args, "--bet", inputAmount);
 
-  console.log("[reference-slot] spin game_id:", gameId, "bet:", bet);
+  console.log("[outcome-runtime] resolve game_id:", gameId, "input_lamports:", inputAmount);
   runCoreYarn("spin:v2", args);
 }
 

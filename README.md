@@ -1,30 +1,30 @@
-# Reference Slot (Frozen Phase 3 Artifact)
+# Outcome Runtime Reference (Frozen Phase 3 Artifact)
 
 ## 1) What this is
 
-`reference-slot` is a reference implementation of an on-chain deterministic slot using `CompiledSpec v2`.
+`reference-slot` is a reference implementation of a deterministic on-chain outcome resolution flow using `CompiledSpec v2`.
 
 It demonstrates:
 - deterministic on-chain execution,
-- provable fairness via deterministic replay,
-- verification by transaction signature from RPC data.
+- replay verification by transaction signature,
+- trustless outcome verification from RPC data.
 
-It contains exactly one frozen slot artifact.
+The demo package contains one frozen reference artifact.
 
 ## 2) What this is NOT
 
-- Not a casino product.
 - Not a marketplace.
-- Not a consumer SaaS.
-- Not a replacement for Slot Studio (Studio remains the factory).
+- Not a consumer product.
+- Not a backend-trust service.
+- Not a replacement for Slot Studio (Studio remains the factory workflow).
 
-## 3) Frozen slot
+## 3) Frozen reference artifact
 
 - source spec: `docs/gamespec/demo_5x3_v1.json`
-- frozen compiled: `reference-slot/artifacts/compiled_spec_v2.json`
+- frozen compiled descriptor: `reference-slot/artifacts/compiled_spec_v2.json`
 - frozen compiled blob: `reference-slot/artifacts/compiled_spec_v2.bin`
 - `compiled_spec_hash`: `fe077796a7e7b5987907b6760f1f10a70eee3ec3a93faa3784b898450e341306`
-- paytable scale: `2158/2048`
+- `scale_k_2048`: `2158/2048`
 
 ## 4) Local run (localnet)
 
@@ -51,31 +51,33 @@ Open:
 - `http://127.0.0.1:8787/verify.html`
 - `http://127.0.0.1:8787/spec.html`
 
-## 5) Script flow (CLI)
+Quick reviewer flow:
+- `reference-slot/RUNBOOK.md`
+
+## 5) CLI flow
 
 ```bash
 cd /Users/timurkurmangaliev/web3-slot-marketplace/reference-slot
 yarn submit:compiled
 yarn approve:compiled
 yarn init:game
-yarn spin
+yarn resolve
 yarn replay --sig <TX_SIGNATURE>
 ```
 
 Notes:
 - scripts are thin wrappers over existing Phase 3 core scripts (`core/contracts/slot/scripts/*`),
-- wallet and RPC are taken from `ANCHOR_WALLET` and `ANCHOR_PROVIDER_URL`.
-- in monorepo mode wrappers use `../core/contracts/slot/node_modules/.bin/ts-node`.
-- for standalone public repo migration see:
-  - `reference-slot/OPEN_REPO_MIGRATION.md`
+- wallet and RPC are read from `ANCHOR_WALLET` and `ANCHOR_PROVIDER_URL`,
+- in monorepo mode wrappers use `../core/contracts/slot/node_modules/.bin/ts-node`,
+- standalone extraction steps are described in `reference-slot/OPEN_REPO_MIGRATION.md`.
 
 ## 6) Fairness verification (step-by-step)
 
-1. Execute a spin and copy the transaction signature.
+1. Execute a resolve transaction and copy its signature.
 2. Open Verify page and run local trustless verification.
-3. The page fetches transaction logs from RPC, decodes `SpinCompletedV2`, recomputes randomness, and checks outcome semantics.
+3. The page fetches transaction logs from RPC, decodes `SpinCompletedV2`, recomputes randomness, and validates outcome semantics.
 4. Result:
-- `MATCH` if recomputed values equal on-chain event values,
+- `MATCH` if recomputed values equal on-chain values,
 - `MISMATCH` otherwise.
 
 Core formula:
@@ -86,7 +88,14 @@ Core formula:
 See:
 - `reference-slot/artifacts/EXPECTED_TX_EXAMPLES.md`
 
-## 8) Threat model
+## 8) Consensus and trust boundaries
+
+Consensus source of truth:
+- compiled binary blob and its `compiled_spec_hash`.
+
+Important:
+- canonical JSON is only an intermediate compiler representation,
+- canonical JSON is not a consensus format.
 
 What a server can fake:
 - UI rendering,
@@ -94,19 +103,19 @@ What a server can fake:
 - convenience API responses.
 
 What a server cannot fake:
-- on-chain transaction logs and account data from public RPC,
+- on-chain logs/accounts from public RPC,
 - deterministic recomputation from immutable inputs,
-- `compiled_spec_hash` bound in on-chain flow.
+- `compiled_spec_hash` bound in on-chain state and events.
 
 How to detect server lies:
-- use local trustless verify in browser (RPC direct),
-- compare with server replay result (optional),
-- rely on transaction signature as immutable reference.
+- run local trustless verify in browser (RPC direct),
+- compare with optional server replay,
+- use transaction signature as immutable reference.
 
 ## 9) Architecture (ASCII)
 
-```
-Reward/Game Spec (off-chain)
+```text
+Outcome/Reward Spec (off-chain)
         |
         v
 CompiledSpec v2 (frozen blob + hash)

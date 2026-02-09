@@ -13,7 +13,7 @@ function main() {
   const compiledPath = path.resolve(fromArg || fromEnv || defaultCompiledPath());
 
   const args = ensureArg(passthrough, "--compiled", compiledPath);
-  console.log("[reference-slot] submit compiled:", compiledPath);
+  console.log("[outcome-runtime] submit compiled:", compiledPath);
   runCoreYarn("submit:compiled:v2", args);
 }
 

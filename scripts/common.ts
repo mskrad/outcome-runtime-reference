@@ -21,7 +21,8 @@ export function repoRoot(): string {
   for (let i = 0; i < 12; i++) {
     if (
       fs.existsSync(path.join(dir, "core", "contracts", "slot")) &&
-      fs.existsSync(path.join(dir, "reference-slot"))
+      (fs.existsSync(path.join(dir, "reference-slot")) ||
+        fs.existsSync(path.join(dir, "outcome-runtime-reference")))
     ) {
       return dir;
     }

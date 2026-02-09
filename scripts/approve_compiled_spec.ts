@@ -20,8 +20,8 @@ function main() {
   args = ensureArg(args, "--hash", hash);
   args = ensureArg(args, "--status", status);
 
-  console.log("[reference-slot] approve hash:", hash);
-  console.log("[reference-slot] status:", status);
+  console.log("[outcome-runtime] approve hash:", hash);
+  console.log("[outcome-runtime] status:", status);
   runCoreYarn("review:compiled:v2", args);
 }
 

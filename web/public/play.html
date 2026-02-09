@@ -3,14 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Reference Slot - Play</title>
+    <title>Outcome Runtime - Resolve</title>
     <link rel="stylesheet" href="/app.css" />
   </head>
   <body>
     <header>
-      <h1>Play</h1>
+      <h1>Resolve</h1>
       <div class="nav">
-        <a href="/play.html">Play</a>
+        <a href="/play.html">Resolve</a>
         <a href="/verify.html">Verify / Replay</a>
         <a href="/spec.html">Spec</a>
       </div>
@@ -42,12 +42,12 @@
             <input id="gameId" placeholder="generated on init" />
           </div>
           <div>
-            <label for="bet">Bet lamports</label>
-            <input id="bet" value="1000" />
+            <label for="inputAmount">Input amount lamports</label>
+            <input id="inputAmount" value="1000" />
           </div>
         </div>
-        <button id="btnInit" class="secondary">Init New Game</button>
-        <button id="btnSpin">Spin</button>
+        <button id="btnInit" class="secondary">Initialize New Runtime</button>
+        <button id="btnSpin">Resolve Outcome</button>
       </div>
 
       <div class="card">
@@ -61,7 +61,9 @@
       const gameIdEl = document.getElementById("gameId");
       const outEl = document.getElementById("out");
       const summaryEl = document.getElementById("summary");
-      const persisted = localStorage.getItem("reference_slot_game_id_hex");
+      const persisted =
+        localStorage.getItem("outcome_runtime_game_id_hex") ||
+        localStorage.getItem("reference_slot_game_id_hex");
       if (persisted) gameIdEl.value = persisted;
 
       async function api(path, payload) {
@@ -96,7 +98,7 @@
           const res = await api("/api/init", payload);
           if (res.game_id_hex) {
             gameIdEl.value = res.game_id_hex;
-            localStorage.setItem("reference_slot_game_id_hex", res.game_id_hex);
+            localStorage.setItem("outcome_runtime_game_id_hex", res.game_id_hex);
           }
           summaryEl.textContent = `GAME_ID_HEX: ${res.game_id_hex || "(unknown)"}`;
           outEl.textContent = res.output || "";
@@ -108,27 +110,28 @@
 
       document.getElementById("btnSpin").onclick = async () => {
         try {
-          outEl.textContent = "Spinning...";
+          outEl.textContent = "Resolving...";
           const gameIdHex = gameIdEl.value.trim();
           if (!gameIdHex) throw new Error("gameId is required");
-          localStorage.setItem("reference_slot_game_id_hex", gameIdHex);
+          localStorage.setItem("outcome_runtime_game_id_hex", gameIdHex);
           const payload = {
             ...commonPayload(),
             gameIdHex,
-            betLamports: Number(document.getElementById("bet").value || 1000),
+            inputLamports: Number(document.getElementById("inputAmount").value || 1000),
           };
-          const res = await api("/api/spin", payload);
+          const res = await api("/api/resolve", payload);
           const replay = res.replay || {};
           const sig = res.signature || "(none)";
           summaryEl.innerHTML = `
             <div><b>signature:</b> ${sig}</div>
-            <div><b>win_lamports:</b> ${replay["win_lamports (event)"] || "n/a"}</div>
-            <div><b>reel_stops:</b> ${replay["reel_stops (event)"] || "n/a"}</div>
+            <div><b>input_lamports:</b> ${replay["bet_lamports (event)"] || "n/a"}</div>
+            <div><b>output_lamports:</b> ${replay["win_lamports (event)"] || "n/a"}</div>
+            <div><b>entropy_stops:</b> ${replay["reel_stops (event)"] || "n/a"}</div>
             <div><b>outcome_id:</b> ${replay["outcome_id (event)"] || "n/a"}</div>
           `;
           outEl.textContent =
-            "=== spin output ===\n" +
-            (res.spin_output || "") +
+            "=== resolve output ===\n" +
+            (res.resolve_output || res.spin_output || "") +
             "\n\n=== replay output ===\n" +
             (res.replay_output || "");
         } catch (e) {

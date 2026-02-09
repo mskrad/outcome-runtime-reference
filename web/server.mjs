@@ -60,7 +60,7 @@ function readJsonBody(req) {
 
 function runCore(scriptName, args = [], extraEnv = {}) {
   if (!fs.existsSync(CORE_SLOT_DIR)) {
-    throw new Error(`core slot dir not found: ${CORE_SLOT_DIR}`);
+    throw new Error(`core runtime dir not found: ${CORE_SLOT_DIR}`);
   }
   const env = {
     ...process.env,
@@ -141,6 +141,7 @@ async function handleApi(req, res, pathname) {
     if (req.method === "GET" && pathname === "/api/health") {
       json(res, 200, {
         ok: true,
+        core_runtime_dir: CORE_SLOT_DIR,
         core_slot_dir: CORE_SLOT_DIR,
         compiled_path: DEFAULT_COMPILED_PATH,
         wallet: process.env.ANCHOR_WALLET || null,
@@ -196,25 +197,25 @@ async function handleApi(req, res, pathname) {
       return;
     }
 
-    if (req.method === "POST" && pathname === "/api/spin") {
+    if (req.method === "POST" && (pathname === "/api/spin" || pathname === "/api/resolve")) {
       const body = await readJsonBody(req);
       const cluster = body.cluster || "localnet";
       const wallet = body.wallet || process.env.ANCHOR_WALLET || "";
       const rpc = body.rpc || defaultRpc(cluster);
       const gameIdHex = (body.gameIdHex || "").toString();
-      const betLamports = String(body.betLamports || 1000);
+      const inputLamports = String(body.inputLamports || body.betLamports || 1000);
       if (!gameIdHex) {
         json(res, 400, { ok: false, error: "gameIdHex is required" });
         return;
       }
       const spinOut = runCore(
         "spin:v2",
-        ["--cluster", cluster, "--game-id", gameIdHex, "--bet", betLamports],
+        ["--cluster", cluster, "--game-id", gameIdHex, "--bet", inputLamports],
         {
           ANCHOR_PROVIDER_URL: rpc,
           ANCHOR_WALLET: wallet,
           GAME_ID_HEX: gameIdHex,
-          BET_LAMPORTS: betLamports,
+          BET_LAMPORTS: inputLamports,
         }
       );
       const sigMatch = spinOut.match(/signature:\s*([1-9A-HJ-NP-Za-km-z]+)/);
@@ -235,6 +236,8 @@ async function handleApi(req, res, pathname) {
       json(res, 200, {
         ok: true,
         signature,
+        input_lamports: inputLamports,
+        resolve_output: spinOut,
         spin_output: spinOut,
         replay_output: replayOut,
         replay: replayKv,
@@ -285,5 +288,5 @@ const server = http.createServer(async (req, res) => {
 
 const port = Number(process.env.PORT || 8787);
 server.listen(port, "127.0.0.1", () => {
-  console.log(`[reference-slot:web] listening on http://127.0.0.1:${port}`);
+  console.log(`[outcome-runtime:web] listening on http://127.0.0.1:${port}`);
 });

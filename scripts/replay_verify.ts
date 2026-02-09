@@ -10,7 +10,7 @@ function main() {
   args = ensureArg(args, "--sig", sig);
   if (!args.includes("--no-java")) args.push("--no-java");
 
-  console.log("[reference-slot] replay sig:", sig);
+  console.log("[outcome-runtime] replay sig:", sig);
   runCoreYarn("replay:v2", args);
 }
 

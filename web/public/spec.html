@@ -3,14 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Reference Slot - Spec</title>
+    <title>Outcome Runtime - Spec</title>
     <link rel="stylesheet" href="/app.css" />
   </head>
   <body>
     <header>
       <h1>Spec</h1>
       <div class="nav">
-        <a href="/play.html">Play</a>
+        <a href="/play.html">Resolve</a>
         <a href="/verify.html">Verify / Replay</a>
         <a href="/spec.html">Spec</a>
       </div>
@@ -46,9 +46,9 @@
           source: c.source,
           gamespec_hash: c.gamespec_hash,
           compiled_spec_hash: c.compiled_spec_hash,
-          paytable_scale_num: c.paytable_scale_num,
-          paytable_scale_den: c.paytable_scale_den,
-          paytable_scale: c.paytable_scale,
+          scale_k_2048: c.paytable_scale_num,
+          scale_den: c.paytable_scale_den,
+          scale_ratio: c.paytable_scale,
           target_rtp: c.target_rtp,
           blob_len_bytes: json.blob_len,
         };
