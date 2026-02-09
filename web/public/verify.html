@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Reference Slot - Verify</title>
+    <link rel="stylesheet" href="/app.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Verify / Replay</h1>
+      <div class="nav">
+        <a href="/play.html">Play</a>
+        <a href="/verify.html">Verify / Replay</a>
+        <a href="/spec.html">Spec</a>
+      </div>
+    </header>
+    <main>
+      <div class="card">
+        <div class="grid2">
+          <div>
+            <label for="cluster">Cluster</label>
+            <select id="cluster">
+              <option value="localnet">localnet</option>
+              <option value="devnet">devnet</option>
+            </select>
+          </div>
+          <div>
+            <label for="rpc">RPC URL</label>
+            <input id="rpc" value="http://127.0.0.1:8899" />
+          </div>
+        </div>
+        <label for="sig">Transaction signature</label>
+        <input id="sig" placeholder="paste tx signature" />
+        <button id="btnLocal">Verify Locally (trustless)</button>
+        <button id="btnServer" class="secondary">Replay via Server</button>
+      </div>
+
+      <div class="card">
+        <h3>Verification Result</h3>
+        <div id="status"></div>
+        <pre id="out"></pre>
+      </div>
+    </main>
+
+    <script>
+      const outEl = document.getElementById("out");
+      const statusEl = document.getElementById("status");
+      const sigParam = new URLSearchParams(location.search).get("sig");
+      if (sigParam) document.getElementById("sig").value = sigParam;
+
+      const toHex = (bytes) =>
+        Array.from(bytes)
+          .map((x) => x.toString(16).padStart(2, "0"))
+          .join("");
+
+      const b64ToBytes = (b64) => {
+        const raw = atob(b64);
+        const out = new Uint8Array(raw.length);
+        for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+        return out;
+      };
+
+      const concatBytes = (...arrs) => {
+        const total = arrs.reduce((s, a) => s + a.length, 0);
+        const out = new Uint8Array(total);
+        let off = 0;
+        for (const a of arrs) {
+          out.set(a, off);
+          off += a.length;
+        }
+        return out;
+      };
+
+      const u64le = (n) => {
+        const out = new Uint8Array(8);
+        let x = BigInt(n);
+        for (let i = 0; i < 8; i++) {
+          out[i] = Number(x & 0xffn);
+          x >>= 8n;
+        }
+        return out;
+      };
+
+      async function sha256Bytes(bytes) {
+        const digest = await crypto.subtle.digest("SHA-256", bytes);
+        return new Uint8Array(digest);
+      }
+
+      async function eventDiscriminator() {
+        const input = new TextEncoder().encode("event:SpinCompletedV2");
+        const h = await sha256Bytes(input);
+        return h.slice(0, 8);
+      }
+
+      function readU16(view, off) {
+        const v = view.getUint16(off.v, true);
+        off.v += 2;
+        return v;
+      }
+
+      function readU64(view, off) {
+        const v = view.getBigUint64(off.v, true);
+        off.v += 8;
+        return v;
+      }
+
+      function readBytes(bytes, off, len) {
+        const out = bytes.slice(off.v, off.v + len);
+        off.v += len;
+        return out;
+      }
+
+      function decodeFixedAscii(bytes) {
+        let end = bytes.length;
+        for (let i = 0; i < bytes.length; i++) {
+          if (bytes[i] === 0) {
+            end = i;
+            break;
+          }
+        }
+        return new TextDecoder().decode(bytes.slice(0, end));
+      }
+
+      function decodeSpinCompletedEvent(payload) {
+        const view = new DataView(payload.buffer, payload.byteOffset, payload.byteLength);
+        const off = { v: 8 };
+        const gameId = readBytes(payload, off, 16);
+        const spinId = readU64(view, off);
+        const player = readBytes(payload, off, 32);
+        const bet = readU64(view, off);
+        const win = readU64(view, off);
+        const masterSeed = readBytes(payload, off, 32);
+        const randomness = readBytes(payload, off, 32);
+        const compiledSpecHash = readBytes(payload, off, 32);
+        const reelCount = payload[off.v];
+        off.v += 1;
+        const reelStopsAll = [];
+        for (let i = 0; i < 16; i++) reelStopsAll.push(readU16(view, off));
+        const freeSpinsAwarded = readU16(view, off);
+        const bonusTotalWin = readU64(view, off);
+
+        let outcomeId = win > 0n ? "sol_transfer" : "no_reward";
+        let effectCount = win > 0n ? 1 : 0;
+        let effectKind = win > 0n ? 1 : 0;
+        let effectAmount = win > 0n ? win : 0n;
+        if (off.v + 26 <= payload.length) {
+          outcomeId = decodeFixedAscii(readBytes(payload, off, 16));
+          effectCount = payload[off.v];
+          off.v += 1;
+          effectKind = payload[off.v];
+          off.v += 1;
+          effectAmount = readU64(view, off);
+        }
+
+        return {
+          gameId,
+          spinId,
+          player,
+          bet,
+          win,
+          masterSeed,
+          randomness,
+          compiledSpecHash,
+          reelCount,
+          reelStops: reelStopsAll.slice(0, reelCount),
+          freeSpinsAwarded,
+          bonusTotalWin,
+          outcomeId,
+          effectCount,
+          effectKind,
+          effectAmount,
+        };
+      }
+
+      async function rpcCall(rpc, method, params) {
+        const res = await fetch(rpc, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method,
+            params,
+          }),
+        });
+        const json = await res.json();
+        if (json.error) throw new Error(json.error.message || "rpc error");
+        return json.result;
+      }
+
+      async function verifyLocal(sig, rpc) {
+        const tx = await rpcCall(rpc, "getTransaction", [
+          sig,
+          { commitment: "confirmed", maxSupportedTransactionVersion: 0 },
+        ]);
+        if (!tx || !tx.meta || !tx.meta.logMessages) {
+          throw new Error("transaction or logs not found");
+        }
+        const disc = await eventDiscriminator();
+
+        let ev = null;
+        for (const line of tx.meta.logMessages) {
+          if (!line.startsWith("Program data: ")) continue;
+          const bytes = b64ToBytes(line.slice("Program data: ".length).trim());
+          const head = bytes.slice(0, 8);
+          let match = true;
+          for (let i = 0; i < 8; i++) {
+            if (head[i] !== disc[i]) {
+              match = false;
+              break;
+            }
+          }
+          if (!match) continue;
+          ev = decodeSpinCompletedEvent(bytes);
+          break;
+        }
+        if (!ev) throw new Error("SpinCompletedV2 event not found");
+
+        const derived = await sha256Bytes(
+          concatBytes(ev.masterSeed, ev.gameId, u64le(ev.spinId), ev.player)
+        );
+        const randomnessMatch = toHex(derived) === toHex(ev.randomness);
+        const expectedOutcome = ev.win > 0n ? "sol_transfer" : "no_reward";
+        const expectedCount = ev.win > 0n ? 1 : 0;
+        const expectedKind = ev.win > 0n ? 1 : 0;
+        const expectedAmount = ev.win > 0n ? ev.win : 0n;
+
+        const outcomeMatch =
+          ev.outcomeId === expectedOutcome &&
+          ev.effectCount === expectedCount &&
+          ev.effectKind === expectedKind &&
+          ev.effectAmount === expectedAmount;
+
+        return {
+          match: randomnessMatch && outcomeMatch,
+          randomnessMatch,
+          outcomeMatch,
+          gameIdHex: toHex(ev.gameId),
+          spinId: ev.spinId.toString(),
+          betLamports: ev.bet.toString(),
+          winLamports: ev.win.toString(),
+          reelStops: ev.reelStops,
+          compiledSpecHash: toHex(ev.compiledSpecHash),
+          randomness: toHex(ev.randomness),
+          derivedRandomness: toHex(derived),
+          outcomeId: ev.outcomeId,
+          effectCount: ev.effectCount,
+          effectKind: ev.effectKind,
+          effectAmountLamports: ev.effectAmount.toString(),
+        };
+      }
+
+      async function verifyServer(sig, rpc, cluster) {
+        const res = await fetch("/api/replay", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ signature: sig, rpc, cluster }),
+        });
+        const json = await res.json();
+        if (!json.ok) throw new Error(json.error || "server replay failed");
+        return json;
+      }
+
+      function renderResult(label, ok, obj) {
+        statusEl.className = ok ? "ok" : "bad";
+        statusEl.textContent = `${label}: ${ok ? "MATCH" : "MISMATCH"}`;
+        outEl.textContent = JSON.stringify(obj, null, 2);
+      }
+
+      document.getElementById("btnLocal").onclick = async () => {
+        try {
+          const sig = document.getElementById("sig").value.trim();
+          const rpc = document.getElementById("rpc").value.trim();
+          if (!sig) throw new Error("signature is required");
+          const result = await verifyLocal(sig, rpc);
+          renderResult("Local trustless verify", result.match, result);
+        } catch (e) {
+          renderResult("Local trustless verify", false, { error: String(e) });
+        }
+      };
+
+      document.getElementById("btnServer").onclick = async () => {
+        try {
+          const sig = document.getElementById("sig").value.trim();
+          const rpc = document.getElementById("rpc").value.trim();
+          const cluster = document.getElementById("cluster").value;
+          if (!sig) throw new Error("signature is required");
+          const result = await verifyServer(sig, rpc, cluster);
+          const ok = (result.replay_output || "").includes("verification_result : MATCH");
+          renderResult("Server replay", ok, result);
+        } catch (e) {
+          renderResult("Server replay", false, { error: String(e) });
+        }
+      };
+    </script>
+  </body>
+</html>

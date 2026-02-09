@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Reference Slot - Play</title>
+    <link rel="stylesheet" href="/app.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Play</h1>
+      <div class="nav">
+        <a href="/play.html">Play</a>
+        <a href="/verify.html">Verify / Replay</a>
+        <a href="/spec.html">Spec</a>
+      </div>
+    </header>
+    <main>
+      <div class="card">
+        <div class="grid2">
+          <div>
+            <label for="cluster">Cluster</label>
+            <select id="cluster">
+              <option value="localnet">localnet</option>
+              <option value="devnet">devnet</option>
+            </select>
+          </div>
+          <div>
+            <label for="rpc">RPC URL</label>
+            <input id="rpc" value="http://127.0.0.1:8899" />
+          </div>
+          <div>
+            <label for="wallet">Wallet path (server-side signer)</label>
+            <input id="wallet" placeholder="/Users/you/.config/solana/id.json" />
+          </div>
+          <div>
+            <label for="seed">Master seed hex (optional on init)</label>
+            <input id="seed" value="" placeholder="00...00 (64 hex)" />
+          </div>
+          <div>
+            <label for="gameId">Game ID hex (16 bytes)</label>
+            <input id="gameId" placeholder="generated on init" />
+          </div>
+          <div>
+            <label for="bet">Bet lamports</label>
+            <input id="bet" value="1000" />
+          </div>
+        </div>
+        <button id="btnInit" class="secondary">Init New Game</button>
+        <button id="btnSpin">Spin</button>
+      </div>
+
+      <div class="card">
+        <h3>Result</h3>
+        <div id="summary"></div>
+        <pre id="out"></pre>
+      </div>
+    </main>
+
+    <script>
+      const gameIdEl = document.getElementById("gameId");
+      const outEl = document.getElementById("out");
+      const summaryEl = document.getElementById("summary");
+      const persisted = localStorage.getItem("reference_slot_game_id_hex");
+      if (persisted) gameIdEl.value = persisted;
+
+      async function api(path, payload) {
+        const res = await fetch(path, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const json = await res.json();
+        if (!json.ok) {
+          throw new Error(json.error || "request failed");
+        }
+        return json;
+      }
+
+      function commonPayload() {
+        return {
+          cluster: document.getElementById("cluster").value,
+          rpc: document.getElementById("rpc").value,
+          wallet: document.getElementById("wallet").value,
+        };
+      }
+
+      document.getElementById("btnInit").onclick = async () => {
+        try {
+          outEl.textContent = "Initializing...";
+          const payload = {
+            ...commonPayload(),
+            gameIdHex: gameIdEl.value.trim() || undefined,
+            masterSeedHex: document.getElementById("seed").value.trim() || undefined,
+          };
+          const res = await api("/api/init", payload);
+          if (res.game_id_hex) {
+            gameIdEl.value = res.game_id_hex;
+            localStorage.setItem("reference_slot_game_id_hex", res.game_id_hex);
+          }
+          summaryEl.textContent = `GAME_ID_HEX: ${res.game_id_hex || "(unknown)"}`;
+          outEl.textContent = res.output || "";
+        } catch (e) {
+          summaryEl.textContent = "";
+          outEl.textContent = String(e);
+        }
+      };
+
+      document.getElementById("btnSpin").onclick = async () => {
+        try {
+          outEl.textContent = "Spinning...";
+          const gameIdHex = gameIdEl.value.trim();
+          if (!gameIdHex) throw new Error("gameId is required");
+          localStorage.setItem("reference_slot_game_id_hex", gameIdHex);
+          const payload = {
+            ...commonPayload(),
+            gameIdHex,
+            betLamports: Number(document.getElementById("bet").value || 1000),
+          };
+          const res = await api("/api/spin", payload);
+          const replay = res.replay || {};
+          const sig = res.signature || "(none)";
+          summaryEl.innerHTML = `
+            <div><b>signature:</b> ${sig}</div>
+            <div><b>win_lamports:</b> ${replay["win_lamports (event)"] || "n/a"}</div>
+            <div><b>reel_stops:</b> ${replay["reel_stops (event)"] || "n/a"}</div>
+            <div><b>outcome_id:</b> ${replay["outcome_id (event)"] || "n/a"}</div>
+          `;
+          outEl.textContent =
+            "=== spin output ===\n" +
+            (res.spin_output || "") +
+            "\n\n=== replay output ===\n" +
+            (res.replay_output || "");
+        } catch (e) {
+          summaryEl.textContent = "";
+          outEl.textContent = String(e);
+        }
+      };
+    </script>
+  </body>
+</html>

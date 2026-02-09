@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Reference Slot - Spec</title>
+    <link rel="stylesheet" href="/app.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Spec</h1>
+      <div class="nav">
+        <a href="/play.html">Play</a>
+        <a href="/verify.html">Verify / Replay</a>
+        <a href="/spec.html">Spec</a>
+      </div>
+    </header>
+    <main>
+      <div class="card">
+        <h3>Frozen Artifact Metadata</h3>
+        <pre id="meta">loading...</pre>
+      </div>
+
+      <div class="card">
+        <h3>Layout</h3>
+        <pre id="layout">loading...</pre>
+      </div>
+
+      <div class="card">
+        <h3>Metrics</h3>
+        <pre id="metrics">loading...</pre>
+      </div>
+    </main>
+
+    <script>
+      async function load() {
+        const res = await fetch("/api/spec");
+        const json = await res.json();
+        if (!json.ok) throw new Error(json.error || "failed to load spec");
+        const c = json.compiled || {};
+        const canonical = c.canonical_gamespec
+          ? JSON.parse(c.canonical_gamespec)
+          : null;
+
+        const meta = {
+          source: c.source,
+          gamespec_hash: c.gamespec_hash,
+          compiled_spec_hash: c.compiled_spec_hash,
+          paytable_scale_num: c.paytable_scale_num,
+          paytable_scale_den: c.paytable_scale_den,
+          paytable_scale: c.paytable_scale,
+          target_rtp: c.target_rtp,
+          blob_len_bytes: json.blob_len,
+        };
+        document.getElementById("meta").textContent = JSON.stringify(meta, null, 2);
+
+        const layout = canonical
+          ? {
+              id: canonical.id,
+              rows: canonical.layout?.rows,
+              cols: canonical.layout?.cols,
+              reel_count: canonical.layout?.reelCount,
+              symbols: canonical.symbols?.map((x) => x.name || x.id),
+              paylines_count: canonical.paylines?.length,
+            }
+          : { warning: "canonical_gamespec is not available in artifact" };
+        document.getElementById("layout").textContent = JSON.stringify(layout, null, 2);
+
+        document.getElementById("metrics").textContent = JSON.stringify(
+          json.metrics || { warning: "metrics.json not found" },
+          null,
+          2
+        );
+      }
+
+      load().catch((e) => {
+        document.getElementById("meta").textContent = String(e);
+        document.getElementById("layout").textContent = String(e);
+        document.getElementById("metrics").textContent = String(e);
+      });
+    </script>
+  </body>
+</html>

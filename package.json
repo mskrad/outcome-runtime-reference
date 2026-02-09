@@ -1,0 +1,14 @@
+{
+  "name": "reference-slot",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "submit:compiled": "../core/contracts/slot/node_modules/.bin/ts-node --esm scripts/submit_compiled_spec.ts",
+    "approve:compiled": "../core/contracts/slot/node_modules/.bin/ts-node --esm scripts/approve_compiled_spec.ts",
+    "init:game": "../core/contracts/slot/node_modules/.bin/ts-node --esm scripts/init_game_v2.ts",
+    "spin": "../core/contracts/slot/node_modules/.bin/ts-node --esm scripts/spin_v2.ts",
+    "replay": "../core/contracts/slot/node_modules/.bin/ts-node --esm scripts/replay_verify.ts",
+    "web": "node web/server.mjs"
+  },
+  "devDependencies": {}
+}
