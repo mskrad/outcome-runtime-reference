@@ -1,5 +1,4 @@
-# Reviewer Runbook (Deprecated Filename)
+# REVIEWER_RUNBOOK (Compatibility Pointer)
 
-Use `reference-slot/RUNBOOK.md` as the primary runbook.
-
-This file is kept for backward compatibility with previous links.
+Reviewer flow:
+- `runbooks/RUNBOOK_DEMO.md`
