@@ -29,19 +29,19 @@ The demo package contains one frozen reference artifact.
 ## 4) Local run (localnet)
 
 ```bash
-cd /Users/timurkurmangaliev/web3-slot-marketplace
+cd $HOME/web3-slot-marketplace
 core/contracts/slot/scripts/localnet_up.sh
 ```
 
 ```bash
-cd /Users/timurkurmangaliev/web3-slot-marketplace/core/contracts/slot
+cd $HOME/web3-slot-marketplace/core/contracts/slot
 ANCHOR_PROVIDER_URL=http://127.0.0.1:8899 \
 ANCHOR_WALLET=$HOME/.config/solana/id.json \
 anchor deploy --provider.cluster localnet
 ```
 
 ```bash
-cd /Users/timurkurmangaliev/web3-slot-marketplace/reference-slot
+cd $HOME/web3-slot-marketplace/reference-slot
 cp .env.example .env
 node web/server.mjs
 ```
@@ -57,7 +57,7 @@ Quick reviewer flow:
 ## 5) CLI flow
 
 ```bash
-cd /Users/timurkurmangaliev/web3-slot-marketplace/reference-slot
+cd $HOME/web3-slot-marketplace/reference-slot
 yarn submit:compiled
 yarn approve:compiled
 yarn init:game

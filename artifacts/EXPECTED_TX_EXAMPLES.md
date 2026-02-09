@@ -20,7 +20,7 @@
 ## How to add a new canonical example
 
 ```bash
-cd /Users/timurkurmangaliev/web3-slot-marketplace/core/contracts/slot
+cd $HOME/web3-slot-marketplace/core/contracts/slot
 yarn -s spin:v2 --game-id <GAME_ID_HEX> --bet 1000
 yarn -s replay:v2 --sig <TX_SIG> --no-java
 ```
