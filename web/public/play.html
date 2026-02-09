@@ -30,10 +30,6 @@
             <input id="rpc" value="http://127.0.0.1:8899" />
           </div>
           <div>
-            <label for="wallet">Wallet path (server-side signer)</label>
-            <input id="wallet" placeholder="/Users/you/.config/solana/id.json" />
-          </div>
-          <div>
             <label for="seed">Master seed hex (optional on init)</label>
             <input id="seed" value="" placeholder="00...00 (64 hex)" />
           </div>
@@ -83,7 +79,6 @@
         return {
           cluster: document.getElementById("cluster").value,
           rpc: document.getElementById("rpc").value,
-          wallet: document.getElementById("wallet").value,
         };
       }
 

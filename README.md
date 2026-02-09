@@ -68,6 +68,7 @@ yarn replay --sig <TX_SIGNATURE>
 Notes:
 - scripts are thin wrappers over existing Phase 3 core scripts (`core/contracts/slot/scripts/*`),
 - wallet and RPC are read from `ANCHOR_WALLET` and `ANCHOR_PROVIDER_URL`,
+- web API signer is server-side only (`ANCHOR_WALLET` from environment),
 - in monorepo mode wrappers use `../core/contracts/slot/node_modules/.bin/ts-node`,
 - standalone extraction steps are described in `reference-slot/OPEN_REPO_MIGRATION.md`.
 

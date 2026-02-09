@@ -144,7 +144,8 @@ async function handleApi(req, res, pathname) {
         core_runtime_dir: CORE_SLOT_DIR,
         core_slot_dir: CORE_SLOT_DIR,
         compiled_path: DEFAULT_COMPILED_PATH,
-        wallet: process.env.ANCHOR_WALLET || null,
+        wallet_configured: Boolean(process.env.ANCHOR_WALLET),
+        program_id: process.env.PROGRAM_ID || null,
         rpc: process.env.ANCHOR_PROVIDER_URL || null,
       });
       return;
@@ -169,8 +170,11 @@ async function handleApi(req, res, pathname) {
     if (req.method === "POST" && pathname === "/api/init") {
       const body = await readJsonBody(req);
       const cluster = body.cluster || "localnet";
-      const wallet = body.wallet || process.env.ANCHOR_WALLET || "";
+      const wallet = process.env.ANCHOR_WALLET || "";
       const rpc = body.rpc || defaultRpc(cluster);
+      if (!wallet) {
+        throw new Error("ANCHOR_WALLET is not configured on server");
+      }
       const compiledPath = ensureCompiledPath(body.compiledPath);
       const gameIdHex = body.gameIdHex || "";
       const seed = body.masterSeedHex || "00".repeat(32);
@@ -200,8 +204,11 @@ async function handleApi(req, res, pathname) {
     if (req.method === "POST" && (pathname === "/api/spin" || pathname === "/api/resolve")) {
       const body = await readJsonBody(req);
       const cluster = body.cluster || "localnet";
-      const wallet = body.wallet || process.env.ANCHOR_WALLET || "";
+      const wallet = process.env.ANCHOR_WALLET || "";
       const rpc = body.rpc || defaultRpc(cluster);
+      if (!wallet) {
+        throw new Error("ANCHOR_WALLET is not configured on server");
+      }
       const gameIdHex = (body.gameIdHex || "").toString();
       const inputLamports = String(body.inputLamports || body.betLamports || 1000);
       if (!gameIdHex) {

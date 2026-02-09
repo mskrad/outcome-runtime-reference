@@ -29,6 +29,10 @@
             <label for="rpc">RPC URL</label>
             <input id="rpc" value="http://127.0.0.1:8899" />
           </div>
+          <div>
+            <label for="programId">Program ID</label>
+            <input id="programId" placeholder="slot program id" />
+          </div>
         </div>
         <label for="sig">Transaction signature</label>
         <input id="sig" placeholder="paste tx signature" />
@@ -48,6 +52,19 @@
       const statusEl = document.getElementById("status");
       const sigParam = new URLSearchParams(location.search).get("sig");
       if (sigParam) document.getElementById("sig").value = sigParam;
+
+      async function loadDefaults() {
+        try {
+          const res = await fetch("/api/health");
+          const json = await res.json();
+          if (json.ok && json.program_id && !document.getElementById("programId").value) {
+            document.getElementById("programId").value = json.program_id;
+          }
+        } catch (_) {
+          // optional health bootstrap
+        }
+      }
+      loadDefaults();
 
       const toHex = (bytes) =>
         Array.from(bytes)
@@ -173,6 +190,16 @@
         };
       }
 
+      function parseProgramInvoke(line) {
+        const m = line.match(/^Program ([1-9A-HJ-NP-Za-km-z]+) invoke \[\d+\]$/);
+        return m ? m[1] : null;
+      }
+
+      function parseProgramFinish(line) {
+        const m = line.match(/^Program ([1-9A-HJ-NP-Za-km-z]+) (success|failed:.*)$/);
+        return m ? m[1] : null;
+      }
+
       async function rpcCall(rpc, method, params) {
         const res = await fetch(rpc, {
           method: "POST",
@@ -189,7 +216,10 @@
         return json.result;
       }
 
-      async function verifyLocal(sig, rpc) {
+      async function verifyLocal(sig, rpc, expectedProgramId) {
+        if (!expectedProgramId) {
+          throw new Error("program_id is required for trustless verification");
+        }
         const tx = await rpcCall(rpc, "getTransaction", [
           sig,
           { commitment: "confirmed", maxSupportedTransactionVersion: 0 },
@@ -200,8 +230,26 @@
         const disc = await eventDiscriminator();
 
         let ev = null;
+        const programStack = [];
         for (const line of tx.meta.logMessages) {
+          const invokeProgram = parseProgramInvoke(line);
+          if (invokeProgram) {
+            programStack.push(invokeProgram);
+            continue;
+          }
+          const finishProgram = parseProgramFinish(line);
+          if (finishProgram) {
+            for (let i = programStack.length - 1; i >= 0; i--) {
+              if (programStack[i] === finishProgram) {
+                programStack.splice(i, 1);
+                break;
+              }
+            }
+            continue;
+          }
           if (!line.startsWith("Program data: ")) continue;
+          if (programStack.length === 0) continue;
+          if (programStack[programStack.length - 1] !== expectedProgramId) continue;
           const bytes = b64ToBytes(line.slice("Program data: ".length).trim());
           const head = bytes.slice(0, 8);
           let match = true;
@@ -273,7 +321,8 @@
           const sig = document.getElementById("sig").value.trim();
           const rpc = document.getElementById("rpc").value.trim();
           if (!sig) throw new Error("signature is required");
-          const result = await verifyLocal(sig, rpc);
+          const programId = document.getElementById("programId").value.trim();
+          const result = await verifyLocal(sig, rpc, programId);
           renderResult("Local trustless verify", result.match, result);
         } catch (e) {
           renderResult("Local trustless verify", false, { error: String(e) });
